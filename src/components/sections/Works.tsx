@@ -36,28 +36,35 @@ const ComingSoonBanner = () => (
     initial={{ opacity: 0, y: 24 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.55, delay: 0.1 }}
-    className="group relative mt-12 block overflow-hidden rounded-3xl border border-pink-400/30 bg-[linear-gradient(120deg,#17102d_0%,#4f1769_45%,#c02c78_100%)] p-6 shadow-[0_0_50px_rgba(219,39,119,0.14)] transition-all duration-500 hover:-translate-y-1 hover:border-cyan-300/50 hover:shadow-[0_0_60px_rgba(34,211,238,0.18)] sm:p-9"
+    className="group relative mt-10 flex min-h-[480px] items-end overflow-hidden rounded-2xl border border-pink-400/30 bg-[#12091f] p-4 shadow-[0_0_35px_rgba(219,39,119,0.14)] transition-all duration-500 hover:-translate-y-1 hover:border-cyan-300/50 hover:shadow-[0_0_60px_rgba(34,211,238,0.18)] sm:mt-12 sm:min-h-[400px] sm:items-center sm:rounded-3xl sm:p-9"
   >
-    <div className="absolute -right-12 -top-20 h-64 w-64 rounded-full bg-orange-400/30 blur-3xl transition-transform duration-700 group-hover:scale-125" />
-    <div className="absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl" />
-    <div className="relative z-10 flex items-center justify-between gap-6">
-      <div>
-        <span className="inline-flex rounded-full border border-white/20 bg-black/20 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-200 backdrop-blur-md">
-          Coming Soon
-        </span>
-        <h3 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-5xl">
-          Grand Theft Auto VI
-        </h3>
-        <p className="mt-3 max-w-xl text-sm leading-6 text-white/70 sm:text-base">
-          Vice City is calling. Get ready to experience GTA VI at Vortex Gaming Cafe.
-        </p>
-        <span className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-cyan-200 transition-all group-hover:gap-3">
-          View official game <span aria-hidden="true">→</span>
-        </span>
-      </div>
-      <div className="hidden shrink-0 select-none bg-gradient-to-b from-orange-200 via-pink-300 to-cyan-300 bg-clip-text text-[7rem] font-black italic leading-none text-transparent drop-shadow-[0_0_24px_rgba(236,72,153,0.45)] sm:block">
-        VI
-      </div>
+    <img
+      src="https://image.api.playstation.com/vulcan/ap/rnd/202606/1818/4a35c9a8490c69fe89af0f52d4ac0249b230b4fdb12e8469.jpg"
+      alt=""
+      aria-hidden="true"
+      className="absolute inset-0 h-full w-full scale-110 object-cover opacity-35 blur-md"
+    />
+    <img
+      src="https://image.api.playstation.com/vulcan/ap/rnd/202606/1818/4a35c9a8490c69fe89af0f52d4ac0249b230b4fdb12e8469.jpg"
+      alt="Grand Theft Auto VI"
+      className="absolute right-0 top-3 h-[250px] w-full object-contain object-right transition-transform duration-700 group-hover:scale-[1.02] sm:inset-0 sm:h-full"
+    />
+    <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(7,3,18,0.98)_0%,rgba(13,5,28,0.72)_42%,rgba(10,4,24,0.08)_75%)] sm:bg-[linear-gradient(90deg,rgba(7,3,18,0.98)_0%,rgba(13,5,28,0.9)_38%,rgba(10,4,24,0.2)_68%,rgba(10,4,24,0.02)_100%)]" />
+    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-pink-500 to-orange-400" />
+    <div className="relative z-10 w-full rounded-xl border border-white/10 bg-[#090512]/80 p-4 shadow-xl backdrop-blur-lg sm:max-w-md sm:rounded-2xl sm:bg-black/35 sm:p-6">
+      <span className="inline-flex rounded-full border border-pink-300/30 bg-pink-500/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-pink-100 sm:text-[11px]">
+        Coming Soon
+      </span>
+      <h3 className="mt-3 text-[28px] font-black leading-tight tracking-tight text-white sm:mt-4 sm:text-5xl">
+        <span className="sm:hidden">GTA VI</span>
+        <span className="hidden sm:inline">Grand Theft Auto VI</span>
+      </h3>
+      <p className="mt-2 text-[13px] leading-5 text-white/70 sm:mt-3 sm:text-base sm:leading-6 sm:text-white/75">
+        Vice City is calling. Get ready to experience GTA VI at Vortex Gaming Cafe.
+      </p>
+      <span className="mt-4 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-xs font-bold text-cyan-100 transition-all group-hover:gap-3 sm:mt-5 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:text-sm sm:text-cyan-200">
+        View official game <span aria-hidden="true">→</span>
+      </span>
     </div>
   </motion.a>
 );
