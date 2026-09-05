@@ -138,6 +138,8 @@ interface ActiveLock {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+const normalizeClockLabel = (value: string): string => value.replace(/^0(?=\d:)/, '');
+
 const normalizeSetups = (setups: Setup[]): Setup[] =>
   setups.flatMap(setup => {
     if (!setup.instances?.length) {
@@ -189,11 +191,11 @@ const normalizeAvailability = (payload: unknown): AvailabilitySlot[] => {
   const slots = Array.isArray(candidate)
     ? candidate.flatMap((slot): AvailabilitySlot[] => {
         if (typeof slot === 'string') {
-          return [{ startTime: slot, available: true }];
+          return [{ startTime: normalizeClockLabel(slot), available: true }];
         }
         if (!isRecord(slot)) return [];
 
-        const startTime = slot.startTime ?? slot.time;
+        const startTime = slot.startTimeFormatted ?? slot.startTime ?? slot.time;
         if (typeof startTime !== 'string') return [];
 
         const status = typeof slot.status === 'string' ? slot.status.toUpperCase() : '';
@@ -206,14 +208,17 @@ const normalizeAvailability = (payload: unknown): AvailabilitySlot[] => {
                 ? status === 'AVAILABLE'
                 : true;
 
-        return [{ startTime, available }];
+        return [{ startTime: normalizeClockLabel(startTime), available }];
       })
     : [];
 
   const tentativeStarts = new Set(
     Array.isArray(tentativeIntervals)
       ? tentativeIntervals.flatMap(interval =>
-          isRecord(interval) && typeof interval.startTime === 'string' ? [interval.startTime] : []
+          isRecord(interval) &&
+          typeof (interval.startTimeFormatted ?? interval.startTime) === 'string'
+            ? [normalizeClockLabel((interval.startTimeFormatted ?? interval.startTime) as string)]
+            : []
         )
       : []
   );

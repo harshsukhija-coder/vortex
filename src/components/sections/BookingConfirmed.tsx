@@ -317,7 +317,11 @@ const BookingConfirmed = () => {
       doc.setFontSize(11);
       doc.setTextColor('#00f0ff');
       doc.setFont('helvetica', 'bold');
-      doc.text('BOOKING CONFIRMATION RECEIPT', 15, 45);
+      doc.text(
+        isTentative ? 'TENTATIVE BOOKING ACKNOWLEDGEMENT' : 'BOOKING CONFIRMATION RECEIPT',
+        15,
+        45
+      );
 
       doc.setTextColor('#ffffff');
       doc.setFont('helvetica', 'normal');
@@ -452,7 +456,11 @@ const BookingConfirmed = () => {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9.5);
       const totalTextY = totalRowY + 6.5;
-      doc.text('TOTAL PAYABLE (INCL. GST)', 20, totalTextY);
+      doc.text(
+        isTentative ? 'ESTIMATED TOTAL (PENDING CONFIRMATION)' : 'TOTAL PAYABLE (INCL. GST)',
+        20,
+        totalTextY
+      );
       doc.setFontSize(11);
       doc.text(`INR ${booking.total}`, 190, totalTextY, { align: 'right' });
 
@@ -485,7 +493,7 @@ const BookingConfirmed = () => {
       doc.setFontSize(7.5);
       doc.text('www.vortexgaming.in | play@vortexgaming.in', 105, 274, { align: 'center' });
 
-      const filename = `Vortex-Booking-${booking.bookingId}.pdf`;
+      const filename = `Vortex-${isTentative ? 'Tentative-' : ''}Booking-${booking.bookingId}.pdf`;
       doc.save(filename);
     } catch (e) {
       console.error('PDF generation failed:', e);
@@ -805,31 +813,31 @@ _Receipt PDF has been downloaded locally. Present Booking ID at front desk._`;
           transition={{ delay: 0.95, duration: 0.5 }}
           style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
         >
+          {/* Download booking PDF */}
+          <motion.button
+            onClick={handleDownloadPDF}
+            whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(0,240,255,0.4)' }}
+            whileTap={{ scale: 0.97 }}
+            style={{
+              width: '100%',
+              padding: '16px',
+              borderRadius: 14,
+              border: '1.5px solid rgba(0,240,255,0.4)',
+              background: 'rgba(0,240,255,0.07)',
+              color: '#00f0ff',
+              cursor: 'pointer',
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              boxShadow: '0 0 16px rgba(0,240,255,0.1)',
+              transition: 'all 0.25s ease',
+            }}
+          >
+            {isTentative ? 'Download Tentative Booking PDF' : 'Download Receipt PDF'}
+          </motion.button>
+
           {!isTentative && (
             <>
-              {/* Download Receipt PDF */}
-              <motion.button
-                onClick={handleDownloadPDF}
-                whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(0,240,255,0.4)' }}
-                whileTap={{ scale: 0.97 }}
-                style={{
-                  width: '100%',
-                  padding: '16px',
-                  borderRadius: 14,
-                  border: '1.5px solid rgba(0,240,255,0.4)',
-                  background: 'rgba(0,240,255,0.07)',
-                  color: '#00f0ff',
-                  cursor: 'pointer',
-                  fontSize: '0.95rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  boxShadow: '0 0 16px rgba(0,240,255,0.1)',
-                  transition: 'all 0.25s ease',
-                }}
-              >
-                Download Receipt PDF
-              </motion.button>
-
               {/* Send to WhatsApp */}
               <motion.button
                 onClick={handleSendWhatsApp}
