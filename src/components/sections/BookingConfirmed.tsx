@@ -101,7 +101,7 @@ const Confetti = () => {
 };
 
 // ─── Glowing ring check ────────────────────────────────────────────────────────
-const CheckCircle = () => (
+const CheckCircle = ({ tentative }: { tentative: boolean }) => (
   <div style={{ position: 'relative', width: 130, height: 130, margin: '0 auto 32px' }}>
     {/* Outer pulse rings */}
     {[1, 2, 3].map(i => (
@@ -142,7 +142,7 @@ const CheckCircle = () => (
         transition={{ delay: 0.4, type: 'spring', stiffness: 200 }}
         style={{ fontSize: 56, lineHeight: 1 }}
       >
-        ✓
+        {tentative ? '⌛' : '✓'}
       </motion.span>
     </motion.div>
   </div>
@@ -252,6 +252,7 @@ const BookingConfirmed = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const booking = location.state as {
+    status?: 'TENTATIVE' | 'CONFIRMED';
     bookingId: string;
     date: string;
     slot: string;
@@ -267,6 +268,7 @@ const BookingConfirmed = () => {
 
   // Guard — if navigated directly with no state, redirect home
   if (!booking) return <Navigate to="/" replace />;
+  const isTentative = booking.status === 'TENTATIVE';
 
   const handleDownloadPDF = async () => {
     if (!booking) return;
@@ -576,7 +578,7 @@ _Receipt PDF has been downloaded locally. Present Booking ID at front desk._`;
       />
 
       {/* Confetti */}
-      <Confetti />
+      {!isTentative && <Confetti />}
 
       {/* Nav */}
       <div
@@ -626,7 +628,8 @@ _Receipt PDF has been downloaded locally. Present Booking ID at front desk._`;
           {/* Title */}
           <div style={{ textAlign: 'center' }}>
             <span style={{ fontSize: '1.05rem', fontWeight: 900, color: '#fff', display: 'block' }}>
-              <span style={{ color: '#915EFF' }}>Vortex</span> · Success
+              <span style={{ color: '#915EFF' }}>Vortex</span> ·{' '}
+              {isTentative ? 'Pending' : 'Success'}
             </span>
           </div>
 
@@ -646,7 +649,7 @@ _Receipt PDF has been downloaded locally. Present Booking ID at front desk._`;
         }}
       >
         {/* ── Check mark ── */}
-        <CheckCircle />
+        <CheckCircle tentative={isTentative} />
 
         {/* ── Headline ── */}
         <motion.div
@@ -664,7 +667,7 @@ _Receipt PDF has been downloaded locally. Present Booking ID at front desk._`;
               lineHeight: 1.15,
             }}
           >
-            You're all set,{' '}
+            {isTentative ? 'Booking held, ' : "You're all set, "}
             <span
               style={{
                 background: 'linear-gradient(135deg,#915EFF,#00f0ff)',
@@ -681,9 +684,11 @@ _Receipt PDF has been downloaded locally. Present Booking ID at front desk._`;
             <strong style={{ color: 'rgba(255,255,255,0.75)' }}>
               Vortex Gaming Cafe, Ahmedabad
             </strong>{' '}
-            is confirmed.
+            {isTentative ? 'is tentatively held.' : 'is confirmed.'}
             <br />
-            Show your Booking ID at the front desk.
+            {isTentative
+              ? 'The cafe team must confirm it before your session is final.'
+              : 'Show your Booking ID at the front desk.'}
           </p>
         </motion.div>
 
@@ -711,7 +716,7 @@ _Receipt PDF has been downloaded locally. Present Booking ID at front desk._`;
               marginBottom: 8,
             }}
           >
-            Booking ID
+            {isTentative ? 'Tentative Booking ID' : 'Booking ID'}
           </div>
           <div
             style={{
@@ -776,7 +781,7 @@ _Receipt PDF has been downloaded locally. Present Booking ID at front desk._`;
             }}
           >
             <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>
-              Total Paid
+              {isTentative ? 'Estimated Total' : 'Total Paid'}
             </span>
             <span
               style={{
@@ -800,73 +805,77 @@ _Receipt PDF has been downloaded locally. Present Booking ID at front desk._`;
           transition={{ delay: 0.95, duration: 0.5 }}
           style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
         >
-          {/* Download Receipt PDF */}
-          <motion.button
-            onClick={handleDownloadPDF}
-            whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(0,240,255,0.4)' }}
-            whileTap={{ scale: 0.97 }}
-            style={{
-              width: '100%',
-              padding: '16px',
-              borderRadius: 14,
-              border: '1.5px solid rgba(0,240,255,0.4)',
-              background: 'rgba(0,240,255,0.07)',
-              color: '#00f0ff',
-              cursor: 'pointer',
-              fontSize: '0.95rem',
-              fontWeight: 700,
-              letterSpacing: '0.04em',
-              boxShadow: '0 0 16px rgba(0,240,255,0.1)',
-              transition: 'all 0.25s ease',
-            }}
-          >
-            Download Receipt PDF
-          </motion.button>
+          {!isTentative && (
+            <>
+              {/* Download Receipt PDF */}
+              <motion.button
+                onClick={handleDownloadPDF}
+                whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(0,240,255,0.4)' }}
+                whileTap={{ scale: 0.97 }}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  borderRadius: 14,
+                  border: '1.5px solid rgba(0,240,255,0.4)',
+                  background: 'rgba(0,240,255,0.07)',
+                  color: '#00f0ff',
+                  cursor: 'pointer',
+                  fontSize: '0.95rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  boxShadow: '0 0 16px rgba(0,240,255,0.1)',
+                  transition: 'all 0.25s ease',
+                }}
+              >
+                Download Receipt PDF
+              </motion.button>
 
-          {/* Send to WhatsApp */}
-          <motion.button
-            onClick={handleSendWhatsApp}
-            whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(0,255,136,0.4)' }}
-            whileTap={{ scale: 0.97 }}
-            style={{
-              width: '100%',
-              padding: '16px',
-              borderRadius: 14,
-              border: '1.5px solid rgba(0,255,136,0.4)',
-              background: 'rgba(0,255,136,0.07)',
-              color: '#00ff88',
-              cursor: 'pointer',
-              fontSize: '0.95rem',
-              fontWeight: 700,
-              letterSpacing: '0.04em',
-              boxShadow: '0 0 16px rgba(0,255,136,0.1)',
-              transition: 'all 0.25s ease',
-            }}
-          >
-            Send Receipt to WhatsApp
-          </motion.button>
+              {/* Send to WhatsApp */}
+              <motion.button
+                onClick={handleSendWhatsApp}
+                whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(0,255,136,0.4)' }}
+                whileTap={{ scale: 0.97 }}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  borderRadius: 14,
+                  border: '1.5px solid rgba(0,255,136,0.4)',
+                  background: 'rgba(0,255,136,0.07)',
+                  color: '#00ff88',
+                  cursor: 'pointer',
+                  fontSize: '0.95rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  boxShadow: '0 0 16px rgba(0,255,136,0.1)',
+                  transition: 'all 0.25s ease',
+                }}
+              >
+                Send Receipt to WhatsApp
+              </motion.button>
 
-          {/* Add to calendar */}
-          <motion.button
-            onClick={handleAddCalendar}
-            whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(0,240,255,0.4)' }}
-            whileTap={{ scale: 0.97 }}
-            style={{
-              width: '100%',
-              padding: '16px',
-              borderRadius: 14,
-              border: '1.5px solid rgba(255,255,255,0.15)',
-              background: 'rgba(255,255,255,0.05)',
-              color: 'rgba(255,255,255,0.8)',
-              cursor: 'pointer',
-              fontSize: '0.95rem',
-              fontWeight: 700,
-              letterSpacing: '0.04em',
-              transition: 'all 0.25s ease',
-            }}
-          >
-            Add to Google Calendar
-          </motion.button>
+              {/* Add to calendar */}
+              <motion.button
+                onClick={handleAddCalendar}
+                whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(0,240,255,0.4)' }}
+                whileTap={{ scale: 0.97 }}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  borderRadius: 14,
+                  border: '1.5px solid rgba(255,255,255,0.15)',
+                  background: 'rgba(255,255,255,0.05)',
+                  color: 'rgba(255,255,255,0.8)',
+                  cursor: 'pointer',
+                  fontSize: '0.95rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  transition: 'all 0.25s ease',
+                }}
+              >
+                Add to Google Calendar
+              </motion.button>
+            </>
+          )}
 
           {/* Book another */}
           <motion.button

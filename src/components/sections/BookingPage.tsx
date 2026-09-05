@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   ApiError,
   apiRequest,
-  confirmTentativeBooking,
   createTentativeBooking,
   getApiErrorMessage,
   getAvailability,
@@ -1837,7 +1836,7 @@ const Step6Confirm = ({
           transition: 'all 0.3s ease',
         }}
       >
-        {isBooking ? 'Reserving Session...' : `Confirm & Book (Pay ₹${summary.totalAmount})`}
+        {isBooking ? 'Holding Session...' : `Create Tentative Booking (₹${summary.totalAmount})`}
       </motion.button>
     </StepWrap>
   );
@@ -2257,43 +2256,25 @@ const BookingPage = () => {
       setActiveLock(null);
       const bookingId = tentativeResponse.booking.id;
       const amount = summary?.totalAmount ?? tentativeResponse.booking.amountCharged ?? 0;
-      const confirmation = await confirmTentativeBooking<BookingSummary>(
-        bookingId,
-        Number(zone),
-        amount,
-        token
-      );
-
-      if (confirmation.success === false) {
-        throw new Error(confirmation.message ?? 'The tentative booking was not confirmed.');
-      }
-
-      const receiptData = confirmation.receipt ?? confirmation.booking ?? null;
       const gameMeta = selectedGames[0] ? getGameMeta(selectedGames[0].name) : { emoji: '🎮' };
-      const slotStr = receiptData
-        ? `${receiptData.startTime} – ${receiptData.endTime}`
-        : summary
-          ? `${summary.startTime} – ${summary.endTime}`
-          : `${startTime} (${noOfHours} ${noOfHours === 1 ? 'hr' : 'hrs'})`;
-      const dateStr =
-        receiptData?.date ?? summary?.date ?? (selectedDate ? fmtFull(selectedDate) : '');
+      const slotStr = summary
+        ? `${summary.startTime} – ${summary.endTime}`
+        : `${startTime} (${noOfHours} ${noOfHours === 1 ? 'hr' : 'hrs'})`;
+      const dateStr = summary?.date ?? (selectedDate ? fmtFull(selectedDate) : '');
 
       navigate('/booking-confirmed', {
         state: {
+          status: 'TENTATIVE',
           bookingId: `VTX-${bookingId}`,
           date: dateStr,
           slot: slotStr,
-          people: receiptData?.playersCount ?? people,
-          zone: receiptData?.zoneName ?? (zoneData ? zoneData.name : 'Vortex Console'),
+          people,
+          zone: summary?.zoneName ?? (zoneData ? zoneData.name : 'Vortex Console'),
           zoneSubtitle: zoneData?.description ?? 'Ahmedabad Gaming Station',
           game: selectedGames.map(game => game.name).join(', ') || 'Custom Game',
           gameEmoji: gameMeta.emoji,
-          total:
-            receiptData?.totalAmount ??
-            summary?.totalAmount ??
-            tentativeResponse.booking.amountCharged ??
-            amount,
-          receipt: receiptData,
+          total: amount,
+          receipt: summary,
           phoneNumber,
         },
       });
