@@ -33,7 +33,9 @@ const ComingSoonBanner = () => (
     href="https://www.rockstargames.com/VI"
     target="_blank"
     rel="noopener noreferrer"
-    variants={fadeIn('up', 'spring', 0.15, 0.75)}
+    initial={{ opacity: 0, y: 24 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.55, delay: 0.1 }}
     className="group relative mt-12 block overflow-hidden rounded-3xl border border-pink-400/30 bg-[linear-gradient(120deg,#17102d_0%,#4f1769_45%,#c02c78_100%)] p-6 shadow-[0_0_50px_rgba(219,39,119,0.14)] transition-all duration-500 hover:-translate-y-1 hover:border-cyan-300/50 hover:shadow-[0_0_60px_rgba(34,211,238,0.18)] sm:p-9"
   >
     <div className="absolute -right-12 -top-20 h-64 w-64 rounded-full bg-orange-400/30 blur-3xl transition-transform duration-700 group-hover:scale-125" />
