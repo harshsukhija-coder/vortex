@@ -1,0 +1,731 @@
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+
+// ─── Data ──────────────────────────────────────────────────────────────────────
+const TIME_SLOTS = [
+  "10:00 AM","11:00 AM","12:00 PM","01:00 PM","02:00 PM",
+  "03:00 PM","04:00 PM","05:00 PM","06:00 PM","07:00 PM",
+  "08:00 PM","09:00 PM","10:00 PM","11:00 PM",
+];
+
+// Pseudo-random occupied slots for realism
+const OCCUPIED: Record<string, number[]> = {
+  "0": [1, 4, 8], "1": [0, 5, 11], "2": [2, 7, 9, 13],
+  "3": [3, 6, 10], "4": [1, 8], "5": [4, 12], "6": [0, 5, 9],
+};
+
+const ZONES = [
+  {
+    id: "zone-a",
+    name: "Zone A",
+    subtitle: "Left Wall",
+    icon: "🎮",
+    screens: "2 × 65\" 4K",
+    rate: 150,
+    badge: "Standard",
+    badgeColor: "#00f0ff",
+    img: "/cafe_wall_left.png",
+  },
+  {
+    id: "zone-b",
+    name: "Zone B",
+    subtitle: "Right Wall",
+    icon: "🎮",
+    screens: "2 × 65\" 4K",
+    rate: 150,
+    badge: "Standard",
+    badgeColor: "#00f0ff",
+    img: "/cafe_wall_right.png",
+  },
+  {
+    id: "main-stage",
+    name: "Main Stage",
+    subtitle: "Big Screen",
+    icon: "🏟️",
+    screens: "1 × 100\" Projection",
+    rate: 250,
+    badge: "Premium",
+    badgeColor: "#FFD700",
+    img: "/cafe_big_screen.png",
+  },
+];
+
+const GAMES = [
+  { id: "fc24",       name: "EA Sports FC 24",     genre: "Sports",    emoji: "⚽" },
+  { id: "spiderman",  name: "Spider-Man 2",         genre: "Action",    emoji: "🕷️" },
+  { id: "gow",        name: "God of War Ragnarök",  genre: "Adventure", emoji: "⚔️" },
+  { id: "cod",        name: "Call of Duty: MW3",    genre: "FPS",       emoji: "🔫" },
+  { id: "gta",        name: "GTA V Enhanced",       genre: "Open World",emoji: "🚗" },
+  { id: "mk1",        name: "Mortal Kombat 1",      genre: "Fighting",  emoji: "🥊" },
+  { id: "nba",        name: "NBA 2K24",             genre: "Sports",    emoji: "🏀" },
+  { id: "tekken",     name: "Tekken 8",             genre: "Fighting",  emoji: "👊" },
+  { id: "hogwarts",   name: "Hogwarts Legacy",      genre: "RPG",       emoji: "🧙" },
+  { id: "tlou",       name: "The Last of Us II",    genre: "Survival",  emoji: "🌿" },
+  { id: "ff16",       name: "Final Fantasy XVI",    genre: "RPG",       emoji: "⚡" },
+  { id: "ratchet",   name: "Ratchet & Clank",      genre: "Platformer",emoji: "🔧" },
+];
+
+const STEPS = ["Date & Time", "Party Size", "Console Zone", "Select Game", "Confirm"];
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+const getDates = () => {
+  const dates: Date[] = [];
+  const today = new Date();
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    dates.push(d);
+  }
+  return dates;
+};
+
+const fmtFull = (d: Date) =>
+  d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+
+// ─── Progress bar ──────────────────────────────────────────────────────────────
+const ProgressBar = ({ step }: { step: number }) => (
+  <div style={{ width: "100%", maxWidth: 700, margin: "0 auto 40px" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
+      {/* connector line */}
+      <div style={{
+        position: "absolute", top: 18, left: "5%", right: "5%", height: 2,
+        background: "rgba(255,255,255,0.08)", zIndex: 0,
+      }} />
+      <motion.div style={{
+        position: "absolute", top: 18, left: "5%", height: 2,
+        background: "linear-gradient(90deg,#915EFF,#00f0ff)",
+        zIndex: 0, transformOrigin: "left",
+      }}
+        animate={{ width: `${(step / (STEPS.length - 1)) * 90}%` }}
+        transition={{ duration: 0.5, ease: "easeInOut" }}
+      />
+      {STEPS.map((label, i) => (
+        <div key={label} style={{ display: "flex", flexDirection: "column", alignItems: "center", zIndex: 1, flex: 1 }}>
+          <motion.div
+            animate={{
+              background: i <= step
+                ? "linear-gradient(135deg,#915EFF,#00f0ff)"
+                : "rgba(255,255,255,0.06)",
+              boxShadow: i <= step
+                ? "0 0 16px rgba(0,240,255,0.6)"
+                : "none",
+              scale: i === step ? 1.2 : 1,
+            }}
+            transition={{ duration: 0.4 }}
+            style={{
+              width: 36, height: 36, borderRadius: "50%",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 14, fontWeight: 800, color: "#fff",
+              border: i <= step ? "none" : "1px solid rgba(255,255,255,0.15)",
+            }}
+          >
+            {i < step ? "✓" : i + 1}
+          </motion.div>
+          <span style={{
+            fontSize: "0.6rem", marginTop: 6, fontWeight: 600,
+            letterSpacing: "0.06em", textTransform: "uppercase",
+            color: i === step ? "#00f0ff" : "rgba(255,255,255,0.35)",
+            whiteSpace: "nowrap",
+          }}>
+            {label}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+// ─── Step wrapper animation ────────────────────────────────────────────────────
+const StepWrap = ({ children }: { children: React.ReactNode }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 28, scale: 0.98 }}
+    animate={{ opacity: 1, y: 0, scale: 1 }}
+    exit={{ opacity: 0, y: -20, scale: 0.97 }}
+    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+  >
+    {children}
+  </motion.div>
+);
+
+// ─── Section title ─────────────────────────────────────────────────────────────
+const StepTitle = ({ icon, title, sub }: { icon: string; title: string; sub: string }) => (
+  <div style={{ marginBottom: 28, textAlign: "center" }}>
+    <div style={{ fontSize: 36, marginBottom: 8 }}>{icon}</div>
+    <h2 style={{ fontSize: "clamp(1.5rem,3vw,2rem)", fontWeight: 900, color: "#fff", marginBottom: 6 }}>{title}</h2>
+    <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.45)" }}>{sub}</p>
+  </div>
+);
+
+// ─── Neon card shell ───────────────────────────────────────────────────────────
+const Card = ({ children, selected, accent = "#00f0ff", onClick, style = {} }: {
+  children: React.ReactNode; selected?: boolean;
+  accent?: string; onClick?: () => void; style?: React.CSSProperties;
+}) => {
+  const [hov, setHov] = useState(false);
+  const active = selected || hov;
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        cursor: onClick ? "pointer" : "default",
+        borderRadius: 16,
+        border: `1.5px solid ${active ? accent : "rgba(255,255,255,0.1)"}`,
+        background: selected
+          ? `rgba(${accent === "#00f0ff" ? "0,240,255" : accent === "#FFD700" ? "255,215,0" : "145,94,255"},0.08)`
+          : "rgba(255,255,255,0.03)",
+        boxShadow: active
+          ? `0 0 24px rgba(${accent === "#00f0ff" ? "0,240,255" : "145,94,255"},0.2), inset 0 0 20px rgba(${accent === "#00f0ff" ? "0,240,255" : "145,94,255"},0.04)`
+          : "none",
+        backdropFilter: "blur(10px)",
+        transition: "all 0.28s ease",
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
+// ─── STEP 1: Date & Time ───────────────────────────────────────────────────────
+const Step1 = ({
+  selectedDate, setSelectedDate,
+  selectedSlot, setSelectedSlot,
+}: {
+  selectedDate: Date | null; setSelectedDate: (d: Date) => void;
+  selectedSlot: number | null; setSelectedSlot: (i: number) => void;
+}) => {
+  const dates = getDates();
+  const dayKey = selectedDate ? String(selectedDate.getDay()) : "0";
+  const occupied = OCCUPIED[dayKey] || [];
+
+  return (
+    <StepWrap>
+      <StepTitle icon="📅" title="Pick a Date & Time" sub="Choose your session date and preferred 1-hour slot" />
+
+      {/* Date scroller */}
+      <div style={{ overflowX: "auto", paddingBottom: 12, marginBottom: 28 }}>
+        <div style={{ display: "flex", gap: 10, minWidth: "max-content" }}>
+          {dates.map((d, i) => {
+            const isSel = selectedDate?.toDateString() === d.toDateString();
+            const isToday = i === 0;
+            return (
+              <motion.div
+                key={i}
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => { setSelectedDate(d); setSelectedSlot(null!); }}
+                style={{
+                  cursor: "pointer",
+                  padding: "12px 16px",
+                  borderRadius: 14,
+                  border: `1.5px solid ${isSel ? "#915EFF" : "rgba(255,255,255,0.1)"}`,
+                  background: isSel
+                    ? "linear-gradient(135deg,rgba(145,94,255,0.25),rgba(0,240,255,0.1))"
+                    : "rgba(255,255,255,0.03)",
+                  boxShadow: isSel ? "0 0 20px rgba(145,94,255,0.4)" : "none",
+                  textAlign: "center",
+                  minWidth: 72,
+                  transition: "all 0.25s ease",
+                }}
+              >
+                <div style={{ fontSize: "0.6rem", letterSpacing: "0.1em", color: isSel ? "#00f0ff" : "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 4 }}>
+                  {isToday ? "TODAY" : d.toLocaleDateString("en-IN", { weekday: "short" }).toUpperCase()}
+                </div>
+                <div style={{ fontSize: "1.4rem", fontWeight: 800, color: isSel ? "#fff" : "rgba(255,255,255,0.75)", lineHeight: 1 }}>
+                  {d.getDate()}
+                </div>
+                <div style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+                  {d.toLocaleDateString("en-IN", { month: "short" })}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Time slots */}
+      {selectedDate ? (
+        <>
+          <p style={{ fontSize: "0.78rem", color: "#00f0ff", marginBottom: 14, letterSpacing: "0.08em" }}>
+            📆 {fmtFull(selectedDate)} — select a time slot
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 10 }}>
+            {TIME_SLOTS.map((slot, i) => {
+              const isOcc = occupied.includes(i);
+              const isSel = selectedSlot === i;
+              return (
+                <motion.div
+                  key={slot}
+                  whileHover={!isOcc ? { y: -2 } : {}}
+                  whileTap={!isOcc ? { scale: 0.96 } : {}}
+                  onClick={() => !isOcc && setSelectedSlot(i)}
+                  style={{
+                    padding: "10px 8px",
+                    borderRadius: 12,
+                    textAlign: "center",
+                    cursor: isOcc ? "not-allowed" : "pointer",
+                    border: `1.5px solid ${isSel ? "#00f0ff" : isOcc ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.12)"}`,
+                    background: isSel
+                      ? "rgba(0,240,255,0.14)"
+                      : isOcc
+                        ? "rgba(255,255,255,0.02)"
+                        : "rgba(255,255,255,0.04)",
+                    boxShadow: isSel ? "0 0 16px rgba(0,240,255,0.35)" : "none",
+                    transition: "all 0.22s ease",
+                  }}
+                >
+                  <div style={{ fontSize: "0.82rem", fontWeight: 700, color: isSel ? "#00f0ff" : isOcc ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.8)" }}>
+                    {slot}
+                  </div>
+                  <div style={{ fontSize: "0.6rem", marginTop: 3, color: isOcc ? "rgba(255,80,80,0.6)" : isSel ? "rgba(0,240,255,0.7)" : "rgba(255,255,255,0.3)" }}>
+                    {isOcc ? "Booked" : isSel ? "Selected ✓" : "Available"}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <div style={{ textAlign: "center", padding: "32px 0", color: "rgba(255,255,255,0.3)", fontSize: "0.9rem" }}>
+          👆 Select a date above to see available slots
+        </div>
+      )}
+    </StepWrap>
+  );
+};
+
+// ─── STEP 2: Party Size ────────────────────────────────────────────────────────
+const Step2 = ({ people, setPeople }: { people: number; setPeople: (n: number) => void }) => (
+  <StepWrap>
+    <StepTitle icon="👥" title="How Many Players?" sub="Max 4 players per booking" />
+    <div style={{ display: "flex", justifyContent: "center", gap: 20, marginBottom: 40 }}>
+      {[1, 2, 3, 4].map((n) => (
+        <motion.div
+          key={n}
+          onClick={() => setPeople(n)}
+          whileHover={{ y: -4, scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          style={{
+            cursor: "pointer",
+            width: 100,
+            padding: "24px 0",
+            borderRadius: 20,
+            textAlign: "center",
+            border: `2px solid ${people === n ? "#915EFF" : "rgba(255,255,255,0.1)"}`,
+            background: people === n
+              ? "linear-gradient(135deg,rgba(145,94,255,0.22),rgba(0,240,255,0.1))"
+              : "rgba(255,255,255,0.03)",
+            boxShadow: people === n ? "0 0 28px rgba(145,94,255,0.45)" : "none",
+            transition: "all 0.28s ease",
+          }}
+        >
+          <div style={{ fontSize: 32, marginBottom: 8 }}>
+            {["🧑", "👫", "👨‍👩‍👦", "👨‍👩‍👧‍👦"][n - 1]}
+          </div>
+          <div style={{ fontSize: "1.6rem", fontWeight: 900, color: people === n ? "#fff" : "rgba(255,255,255,0.6)" }}>{n}</div>
+          <div style={{ fontSize: "0.65rem", color: people === n ? "#00f0ff" : "rgba(255,255,255,0.35)", marginTop: 4, letterSpacing: "0.08em" }}>
+            {n === 1 ? "Solo" : n === 2 ? "Duo" : n === 3 ? "Trio" : "Squad"}
+          </div>
+        </motion.div>
+      ))}
+    </div>
+
+    {/* Per-person breakdown hint */}
+    <Card style={{ padding: "18px 24px", maxWidth: 400, margin: "0 auto" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.85rem" }}>Players selected</span>
+        <span style={{ color: "#fff", fontWeight: 800, fontSize: "1.1rem" }}>{people} {people === 1 ? "person" : "people"}</span>
+      </div>
+      <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "12px 0" }} />
+      <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.35)", textAlign: "center" }}>
+        💡 Pricing is per-person per hour — billed at checkout
+      </div>
+    </Card>
+  </StepWrap>
+);
+
+// ─── STEP 3: Console Zone ──────────────────────────────────────────────────────
+const Step3 = ({ zone, setZone }: { zone: string; setZone: (z: string) => void }) => (
+  <StepWrap>
+    <StepTitle icon="🏟️" title="Choose Your Zone" sub="Pick a PS5 station — each zone has its own vibe" />
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {ZONES.map((z) => (
+        <motion.div
+          key={z.id}
+          onClick={() => setZone(z.id)}
+          whileHover={{ x: 4 }}
+          whileTap={{ scale: 0.98 }}
+          style={{
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 20,
+            padding: "18px 20px",
+            borderRadius: 18,
+            border: `2px solid ${zone === z.id ? z.badgeColor : "rgba(255,255,255,0.1)"}`,
+            background: zone === z.id
+              ? `rgba(${z.badgeColor === "#00f0ff" ? "0,240,255" : "255,215,0"},0.07)`
+              : "rgba(255,255,255,0.03)",
+            boxShadow: zone === z.id ? `0 0 28px rgba(${z.badgeColor === "#00f0ff" ? "0,240,255" : "255,215,0"},0.25)` : "none",
+            backdropFilter: "blur(10px)",
+            transition: "all 0.28s ease",
+          }}
+        >
+          {/* Preview thumb */}
+          <div style={{
+            width: 90, height: 60, borderRadius: 10, overflow: "hidden",
+            flexShrink: 0, border: `1px solid rgba(255,255,255,0.1)`,
+          }}>
+            <img src={z.img} alt={z.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          </div>
+
+          {/* Info */}
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+              <span style={{ fontSize: "1rem", fontWeight: 800, color: "#fff" }}>{z.icon} {z.name}</span>
+              <span style={{
+                fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.14em",
+                color: z.badgeColor, border: `1px solid ${z.badgeColor}`,
+                borderRadius: 6, padding: "2px 8px",
+                textShadow: `0 0 6px ${z.badgeColor}`,
+              }}>
+                {z.badge}
+              </span>
+            </div>
+            <div style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.45)" }}>{z.subtitle} · {z.screens}</div>
+          </div>
+
+          {/* Price */}
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div style={{ fontSize: "1.3rem", fontWeight: 900, color: z.badgeColor }}>₹{z.rate}</div>
+            <div style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em" }}>/ person / hr</div>
+          </div>
+
+          {/* Selected check */}
+          {zone === z.id && (
+            <div style={{
+              width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+              background: "linear-gradient(135deg,#915EFF,#00f0ff)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 14, color: "#fff", fontWeight: 800,
+            }}>✓</div>
+          )}
+        </motion.div>
+      ))}
+    </div>
+  </StepWrap>
+);
+
+// ─── STEP 4: Game Selection ────────────────────────────────────────────────────
+const Step4 = ({ game, setGame }: { game: string; setGame: (g: string) => void }) => (
+  <StepWrap>
+    <StepTitle icon="🕹️" title="Pick Your Game" sub="All games are pre-loaded and ready to play" />
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 12 }}>
+      {GAMES.map((g) => (
+        <motion.div
+          key={g.id}
+          onClick={() => setGame(g.id)}
+          whileHover={{ y: -4, scale: 1.03 }}
+          whileTap={{ scale: 0.96 }}
+          style={{
+            cursor: "pointer",
+            padding: "20px 14px",
+            borderRadius: 16,
+            textAlign: "center",
+            border: `1.5px solid ${game === g.id ? "#915EFF" : "rgba(255,255,255,0.1)"}`,
+            background: game === g.id
+              ? "linear-gradient(135deg,rgba(145,94,255,0.2),rgba(0,240,255,0.07))"
+              : "rgba(255,255,255,0.04)",
+            boxShadow: game === g.id ? "0 0 20px rgba(145,94,255,0.4)" : "none",
+            transition: "all 0.25s ease",
+          }}
+        >
+          <div style={{ fontSize: 36, marginBottom: 10 }}>{g.emoji}</div>
+          <div style={{
+            fontSize: "0.8rem", fontWeight: 700, color: game === g.id ? "#fff" : "rgba(255,255,255,0.75)",
+            lineHeight: 1.25, marginBottom: 6,
+          }}>
+            {g.name}
+          </div>
+          <div style={{
+            display: "inline-block", fontSize: "0.58rem", letterSpacing: "0.12em",
+            padding: "2px 8px", borderRadius: 6, fontWeight: 600,
+            color: game === g.id ? "#00f0ff" : "rgba(255,255,255,0.3)",
+            border: `1px solid ${game === g.id ? "rgba(0,240,255,0.4)" : "rgba(255,255,255,0.08)"}`,
+          }}>
+            {g.genre}
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  </StepWrap>
+);
+
+// ─── STEP 5: Confirm ───────────────────────────────────────────────────────────
+const Step5 = ({
+  selectedDate, selectedSlot, people, zone, game, onConfirm,
+}: {
+  selectedDate: Date | null; selectedSlot: number | null;
+  people: number; zone: string; game: string;
+  onConfirm: () => void;
+}) => {
+  const zoneData  = ZONES.find((z) => z.id === zone)!;
+  const gameData  = GAMES.find((g) => g.id === game)!;
+  const total     = zoneData.rate * people;
+  const tax       = Math.round(total * 0.18);
+
+  const rows = [
+    { label: "📅 Date",        val: selectedDate ? fmtFull(selectedDate) : "-" },
+    { label: "⏰ Time Slot",   val: selectedSlot !== null ? `${TIME_SLOTS[selectedSlot]} – ${TIME_SLOTS[selectedSlot + 1] ?? "12:00 AM"}` : "-" },
+    { label: "👥 Players",     val: `${people} ${people === 1 ? "person" : "people"}` },
+    { label: "🏟️ Zone",        val: `${zoneData.name} (${zoneData.subtitle})` },
+    { label: "🕹️ Game",        val: `${gameData.emoji} ${gameData.name}` },
+    { label: "⏱️ Duration",    val: "1 Hour" },
+  ];
+
+  return (
+    <StepWrap>
+      <StepTitle icon="🧾" title="Confirm Booking" sub="Review your session details before paying" />
+
+      {/* Summary card */}
+      <div style={{
+        background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: 20, padding: "24px", marginBottom: 20, backdropFilter: "blur(12px)",
+      }}>
+        {rows.map(({ label, val }, i) => (
+          <div key={i} style={{
+            display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+            padding: "10px 0",
+            borderBottom: i < rows.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
+          }}>
+            <span style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.45)" }}>{label}</span>
+            <span style={{ fontSize: "0.88rem", fontWeight: 700, color: "#fff", textAlign: "right", maxWidth: "55%" }}>{val}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Price breakdown */}
+      <div style={{
+        background: "linear-gradient(135deg,rgba(145,94,255,0.1),rgba(0,240,255,0.07))",
+        border: "1px solid rgba(145,94,255,0.3)",
+        borderRadius: 20, padding: "20px 24px", marginBottom: 28,
+        boxShadow: "0 0 30px rgba(145,94,255,0.15)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+          <span style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.5)" }}>₹{zoneData.rate} × {people} {people === 1 ? "person" : "people"} × 1 hr</span>
+          <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>₹{total}</span>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+          <span style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.5)" }}>GST (18%)</span>
+          <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>₹{tax}</span>
+        </div>
+        <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "12px 0" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: "1rem", fontWeight: 800, color: "#fff" }}>Total</span>
+          <span style={{
+            fontSize: "1.6rem", fontWeight: 900,
+            background: "linear-gradient(135deg,#915EFF,#00f0ff)",
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
+          }}>
+            ₹{total + tax}
+          </span>
+        </div>
+      </div>
+
+      {/* Confirm button */}
+      <motion.button
+        onClick={onConfirm}
+        whileHover={{ scale: 1.03, boxShadow: "0 0 50px rgba(145,94,255,0.7)" }}
+        whileTap={{ scale: 0.97 }}
+        style={{
+          width: "100%", padding: "18px", borderRadius: 16,
+          border: "none", cursor: "pointer",
+          background: "linear-gradient(135deg,#6d28d9,#915EFF,#00c8d4)",
+          color: "#fff", fontSize: "1.05rem", fontWeight: 800,
+          letterSpacing: "0.05em", boxShadow: "0 0 28px rgba(145,94,255,0.5)",
+          transition: "box-shadow 0.3s ease",
+        }}
+      >
+        🎮 &nbsp; Confirm & Pay ₹{total + tax}
+      </motion.button>
+    </StepWrap>
+  );
+};
+
+// ─── Main booking page ─────────────────────────────────────────────────────────
+const BookingPage = () => {
+  const navigate      = useNavigate();
+  const [step, setStep]               = useState(0);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+  const [people, setPeople]             = useState(2);
+  const [zone, setZone]                 = useState("zone-a");
+  const [game, setGame]                 = useState("spiderman");
+
+  useEffect(() => {
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [step]);
+
+  const canNext = [
+
+    selectedDate && selectedSlot !== null,
+    people > 0,
+    !!zone,
+    !!game,
+    true,
+  ];
+
+  const nextStep = () => {
+    if (step < STEPS.length - 1) setStep((s) => s + 1);
+  };
+  const prevStep = () => {
+    if (step > 0) setStep((s) => s - 1);
+  };
+
+  const handleConfirm = () => {
+    const zoneData = ZONES.find((z) => z.id === zone)!;
+    const gameData = GAMES.find((g) => g.id === game)!;
+    const base     = zoneData.rate * people;
+    const tax      = Math.round(base * 0.18);
+    const slot     = selectedSlot!;
+
+    navigate("/booking-confirmed", {
+      state: {
+        bookingId:    `VTX-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+        date:         selectedDate ? fmtFull(selectedDate) : "",
+        slot:         `${TIME_SLOTS[slot]} – ${TIME_SLOTS[slot + 1] ?? "12:00 AM"}`,
+        people,
+        zone:         zoneData.name,
+        zoneSubtitle: zoneData.subtitle,
+        game:         gameData.name,
+        gameEmoji:    gameData.emoji,
+        total:        base + tax,
+      },
+    });
+  };
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "#050510",
+      position: "relative",
+      fontFamily: "'Poppins', sans-serif",
+    }}>
+      {/* Background image with overlay */}
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 0,
+        backgroundImage: "url(/booking_bg.png)",
+        backgroundSize: "cover", backgroundPosition: "center",
+        opacity: 0.12,
+        pointerEvents: "none",
+      }} />
+
+      {/* Radial glow */}
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none",
+        background: "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(145,94,255,0.15) 0%, transparent 70%)",
+      }} />
+
+      {/* Nav bar */}
+      <div style={{
+        position: "sticky", top: 0, zIndex: 50,
+        background: "rgba(5,5,16,0.85)", backdropFilter: "blur(16px)",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "14px 24px",
+      }}>
+        <button
+          onClick={() => navigate("/")}
+          style={{
+            background: "none", border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 10, padding: "8px 16px", cursor: "pointer",
+            color: "rgba(255,255,255,0.6)", fontSize: "0.82rem", fontWeight: 600,
+          }}
+        >
+          ← Back
+        </button>
+        <div style={{ fontSize: "1.1rem", fontWeight: 900, color: "#fff" }}>
+          <span style={{ color: "#915EFF" }}>Vortex</span> · Book a Slot
+        </div>
+        <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.35)", fontWeight: 600 }}>
+          Step {step + 1} / {STEPS.length}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "48px 20px 80px", position: "relative", zIndex: 1 }}>
+        <ProgressBar step={step} />
+
+        <AnimatePresence mode="wait">
+          <div key={step}>
+            {step === 0 && (
+              <Step1
+                selectedDate={selectedDate} setSelectedDate={setSelectedDate}
+                selectedSlot={selectedSlot} setSelectedSlot={setSelectedSlot}
+              />
+            )}
+            {step === 1 && <Step2 people={people} setPeople={setPeople} />}
+            {step === 2 && <Step3 zone={zone} setZone={setZone} />}
+            {step === 3 && <Step4 game={game} setGame={setGame} />}
+            {step === 4 && (
+              <Step5
+                selectedDate={selectedDate} selectedSlot={selectedSlot}
+                people={people} zone={zone} game={game}
+                onConfirm={handleConfirm}
+              />
+            )}
+          </div>
+        </AnimatePresence>
+
+        {/* Bottom nav buttons */}
+        <div style={{ display: "flex", gap: 14, marginTop: 36, justifyContent: step === 0 ? "flex-end" : "space-between" }}>
+          {step > 0 && (
+            <motion.button
+              onClick={prevStep}
+              whileHover={{ x: -2 }}
+              whileTap={{ scale: 0.97 }}
+              style={{
+                padding: "14px 28px", borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.15)",
+                background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.7)",
+                cursor: "pointer", fontSize: "0.9rem", fontWeight: 700,
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              ← Previous
+            </motion.button>
+          )}
+          {step < STEPS.length - 1 && (
+            <motion.button
+              onClick={nextStep}
+              disabled={!canNext[step]}
+              whileHover={canNext[step] ? { x: 2, boxShadow: "0 0 30px rgba(145,94,255,0.6)" } : {}}
+              whileTap={canNext[step] ? { scale: 0.97 } : {}}
+              style={{
+                padding: "14px 32px", borderRadius: 12, border: "none",
+                background: canNext[step]
+                  ? "linear-gradient(135deg,#6d28d9,#915EFF)"
+                  : "rgba(255,255,255,0.06)",
+                color: canNext[step] ? "#fff" : "rgba(255,255,255,0.25)",
+                cursor: canNext[step] ? "pointer" : "not-allowed",
+                fontSize: "0.95rem", fontWeight: 800,
+                boxShadow: canNext[step] ? "0 0 20px rgba(145,94,255,0.4)" : "none",
+                transition: "all 0.25s ease",
+                marginLeft: "auto",
+              }}
+            >
+              {step === STEPS.length - 2 ? "Review Booking →" : "Continue →"}
+            </motion.button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default BookingPage;
