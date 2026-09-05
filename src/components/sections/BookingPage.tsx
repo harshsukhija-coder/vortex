@@ -2012,8 +2012,8 @@ const BookingPage = () => {
     setEvaluationError(null);
     try {
       const payload = {
-        setupId: Number(zone),
-        count: people,
+        setupConfigurationId: Number(zone),
+        playersCount: people,
         date: selectedDate ? formatLocalDate(selectedDate) : '',
         startTime: startTime,
         noOfHours: noOfHours,
