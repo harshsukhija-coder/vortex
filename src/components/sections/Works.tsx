@@ -28,6 +28,38 @@ const toProject = (game: ApiGame): TProject => ({
   sourceCodeLink: '',
 });
 
+const ComingSoonBanner = () => (
+  <motion.a
+    href="https://www.rockstargames.com/VI"
+    target="_blank"
+    rel="noopener noreferrer"
+    variants={fadeIn('up', 'spring', 0.15, 0.75)}
+    className="group relative mt-12 block overflow-hidden rounded-3xl border border-pink-400/30 bg-[linear-gradient(120deg,#17102d_0%,#4f1769_45%,#c02c78_100%)] p-6 shadow-[0_0_50px_rgba(219,39,119,0.14)] transition-all duration-500 hover:-translate-y-1 hover:border-cyan-300/50 hover:shadow-[0_0_60px_rgba(34,211,238,0.18)] sm:p-9"
+  >
+    <div className="absolute -right-12 -top-20 h-64 w-64 rounded-full bg-orange-400/30 blur-3xl transition-transform duration-700 group-hover:scale-125" />
+    <div className="absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl" />
+    <div className="relative z-10 flex items-center justify-between gap-6">
+      <div>
+        <span className="inline-flex rounded-full border border-white/20 bg-black/20 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-200 backdrop-blur-md">
+          Coming Soon
+        </span>
+        <h3 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-5xl">
+          Grand Theft Auto VI
+        </h3>
+        <p className="mt-3 max-w-xl text-sm leading-6 text-white/70 sm:text-base">
+          Vice City is calling. Get ready to experience GTA VI at Vortex Gaming Cafe.
+        </p>
+        <span className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-cyan-200 transition-all group-hover:gap-3">
+          View official game <span aria-hidden="true">→</span>
+        </span>
+      </div>
+      <div className="hidden shrink-0 select-none bg-gradient-to-b from-orange-200 via-pink-300 to-cyan-300 bg-clip-text text-[7rem] font-black italic leading-none text-transparent drop-shadow-[0_0_24px_rgba(236,72,153,0.45)] sm:block">
+        VI
+      </div>
+    </div>
+  </motion.a>
+);
+
 const ProjectCard: React.FC<
   { index: number } & TProject & { onWatchGameplay: (videoId: string, title: string) => void }
 > = ({
@@ -190,6 +222,8 @@ const Works = () => {
           {config.sections.works.content}
         </motion.p>
       </div>
+
+      <ComingSoonBanner />
 
       <div className="mt-20 flex flex-wrap justify-center gap-7">
         {loading ? (
