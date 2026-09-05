@@ -1173,7 +1173,7 @@ const Step3 = ({
       </div>
       <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '12px 0' }} />
       <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', textAlign: 'center' }}>
-        Pricing is per-person per hour — GST billed at confirmation step
+        Pricing is per-person per hour
       </div>
     </Card>
   </StepWrap>

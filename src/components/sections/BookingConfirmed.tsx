@@ -457,7 +457,7 @@ const BookingConfirmed = () => {
       doc.setFontSize(9.5);
       const totalTextY = totalRowY + 6.5;
       doc.text(
-        isTentative ? 'ESTIMATED TOTAL (PENDING CONFIRMATION)' : 'TOTAL PAYABLE (INCL. GST)',
+        isTentative ? 'ESTIMATED TOTAL (PENDING CONFIRMATION)' : 'TOTAL PAYABLE',
         20,
         totalTextY
       );
