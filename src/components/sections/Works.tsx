@@ -99,7 +99,11 @@ const ProjectCard: React.FC<
   };
 
   return (
-    <motion.div variants={fadeIn('up', 'spring', index * 0.5, 0.75)}>
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, delay: Math.min(index * 0.08, 0.4) }}
+    >
       <Tilt glareEnable tiltEnable tiltMaxAngleX={15} tiltMaxAngleY={15} glareColor="#00f0ff">
         <div className="bg-tertiary w-full rounded-2xl p-5 sm:w-[320px] min-h-[480px] flex flex-col justify-between border border-purple-500/10 hover:border-purple-500/35 transition-colors duration-300 shadow-lg hover:shadow-purple-500/5">
           <div>
