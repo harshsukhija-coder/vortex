@@ -2,12 +2,10 @@ import { useCallback, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  ApiError,
   apiRequest,
   createTentativeBooking,
   getApiErrorMessage,
   getAvailability,
-  lockSlot,
   login,
   reviewBooking,
 } from '../../api/bookingApi';
@@ -65,10 +63,20 @@ type SetupConfiguration = Omit<Setup, 'id' | 'setupConfigurationId' | 'instances
 
 interface EvaluationOffer {
   id: number;
+  code?: string;
   name: string;
   eligible: boolean;
   discount: number;
   reason: string;
+}
+
+interface EvaluatedOfferResponse {
+  id: number;
+  code?: string;
+  name?: string;
+  eligible?: boolean;
+  discount: number;
+  reason?: string;
 }
 
 interface AppliedPromo {
@@ -130,10 +138,38 @@ interface AvailabilitySlot {
   available: boolean;
 }
 
-interface ActiveLock {
-  token: string;
-  selectionKey: string;
-}
+const formatOfferCode = (code?: string): string =>
+  code
+    ? code
+        .toLowerCase()
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+    : 'Offer';
+
+const normalizeEvaluatedOffers = (
+  appliedOffers: EvaluatedOfferResponse[],
+  ineligibleOffers: EvaluatedOfferResponse[],
+  offerDefinitions: Offer[]
+): EvaluationOffer[] => {
+  const toOffer = (offer: EvaluatedOfferResponse, eligible: boolean): EvaluationOffer => {
+    const definition = offerDefinitions.find(item => item.id === offer.id);
+
+    return {
+      id: offer.id,
+      code: offer.code,
+      name: offer.name ?? definition?.name ?? formatOfferCode(offer.code),
+      eligible,
+      discount: offer.discount,
+      reason: offer.reason ?? (eligible ? 'Applicable' : 'Not applicable'),
+    };
+  };
+
+  return [
+    ...appliedOffers.map(offer => toOffer(offer, true)),
+    ...ineligibleOffers.map(offer => toOffer(offer, false)),
+  ];
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -1327,7 +1363,6 @@ const OffersAvailableStep = ({
   error,
   onRetry,
   selectedIds,
-  onToggleOffer,
   getOfferType,
 }: {
   offers: EvaluationOffer[];
@@ -1335,14 +1370,13 @@ const OffersAvailableStep = ({
   error: string | null;
   onRetry: () => void;
   selectedIds: number[];
-  onToggleOffer: (off: EvaluationOffer) => void;
   getOfferType: (id: number) => 'EXCLUSIVE' | 'INCLUSIVE';
 }) => (
   <StepWrap>
     <StepTitle
       icon="Step 05 / 06"
       title="Offers Available"
-      sub="Select promotions to apply to your booking"
+      sub="Eligible promotions are applied automatically"
     />
     {loading ? (
       <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.5)' }}>
@@ -1366,6 +1400,16 @@ const OffersAvailableStep = ({
           🔄 Retry Evaluation
         </button>
       </div>
+    ) : offers.length === 0 ? (
+      <div
+        style={{
+          textAlign: 'center',
+          padding: '32px',
+          color: 'rgba(255,255,255,0.45)',
+        }}
+      >
+        No offers are available for this booking.
+      </div>
     ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {offers.map(off => {
@@ -1376,13 +1420,11 @@ const OffersAvailableStep = ({
           return (
             <motion.div
               key={off.id}
-              onClick={() => isElig && onToggleOffer(off)}
               whileHover={isElig ? { y: -2, scale: 1.01 } : {}}
-              whileTap={isElig ? { scale: 0.99 } : {}}
               style={{
                 padding: '18px 20px',
                 borderRadius: 18,
-                cursor: isElig ? 'pointer' : 'not-allowed',
+                cursor: 'default',
                 border: `1.5px solid ${
                   isSel ? '#00f0ff' : isElig ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.06)'
                 }`,
@@ -1438,7 +1480,9 @@ const OffersAvailableStep = ({
                     fontWeight: 500,
                   }}
                 >
-                  {isElig ? `Save ₹${off.discount}!` : `Locked: ${off.reason}`}
+                  {isElig
+                    ? `Applied automatically. Save ₹${off.discount}`
+                    : `Not eligible: ${off.reason}`}
                 </div>
               </div>
 
@@ -1474,7 +1518,7 @@ const OffersAvailableStep = ({
                     textTransform: 'uppercase',
                   }}
                 >
-                  Locked
+                  Not eligible
                 </span>
               )}
             </motion.div>
@@ -1890,8 +1934,6 @@ const BookingPage = () => {
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [apiToken, setApiToken] = useState<string | null>(null);
-  const [activeLock, setActiveLock] = useState<ActiveLock | null>(null);
-  const [isLocking, setIsLocking] = useState(false);
 
   // Fetch offers on load
   useEffect(() => {
@@ -2007,10 +2049,6 @@ const BookingPage = () => {
     void fetchAvailability();
   }, [fetchAvailability]);
 
-  useEffect(() => {
-    setActiveLock(null);
-  }, [zone, selectedDate, startTime, noOfHours]);
-
   // 4. Fetch evaluation offers on entering step 4 (index 4 - Offers Available)
   const fetchEvaluation = useCallback(async () => {
     setLoadingEvaluation(true);
@@ -2027,33 +2065,20 @@ const BookingPage = () => {
       const data = await apiRequest<{
         success?: boolean;
         offers?: EvaluationOffer[];
+        appliedOffers?: EvaluatedOfferResponse[];
+        ineligibleOffers?: EvaluatedOfferResponse[];
         message?: string;
       }>('/api/offers/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (data.success && data.offers) {
-        setEvaluationOffers(data.offers);
-
-        // Auto pre-select eligible offers
-        const eligibleOffers = data.offers.filter(offer => offer.eligible);
-        if (eligibleOffers.length > 0) {
-          const firstExclusive = eligibleOffers.find(offer => {
-            const type = offers.find(availableOffer => availableOffer.id === offer.id)?.offerType;
-            return type === 'EXCLUSIVE';
-          });
-          if (firstExclusive) {
-            // Pre-select exclusive if it exists
-            setSelectedOfferIds([firstExclusive.id]);
-          } else {
-            // Otherwise pre-select all stackable inclusive ones
-            const inclusiveIds = eligibleOffers.map(offer => offer.id);
-            setSelectedOfferIds(inclusiveIds);
-          }
-        } else {
-          setSelectedOfferIds([]);
-        }
+      if (data.success) {
+        const evaluatedOffers = data.offers
+          ? data.offers
+          : normalizeEvaluatedOffers(data.appliedOffers ?? [], data.ineligibleOffers ?? [], offers);
+        setEvaluationOffers(evaluatedOffers);
+        setSelectedOfferIds(evaluatedOffers.filter(offer => offer.eligible).map(offer => offer.id));
       } else {
         setEvaluationError(data.message || 'Failed to retrieve offer evaluation.');
       }
@@ -2120,7 +2145,7 @@ const BookingPage = () => {
     selectedDate && !!startTime && noOfHours > 0 && !loadingAvailability && !availabilityError,
     people > 0 && people <= 4, // Step 3: Party size selected
     selectedGameIds.length > 0, // Step 4: Games selected
-    !loadingEvaluation && !isLocking, // Step 5: Offers Available loaded
+    !loadingEvaluation, // Step 5: Offers Available loaded
     true, // Step 6: Confirm review
   ];
 
@@ -2130,40 +2155,10 @@ const BookingPage = () => {
     );
   };
 
-  const handleToggleOffer = (off: EvaluationOffer) => {
-    if (!off.eligible) return;
-
-    const matchedOffer = offers.find(o => o.id === off.id);
-    const offerType = matchedOffer ? matchedOffer.offerType : 'EXCLUSIVE';
-
-    setSelectedOfferIds(prev => {
-      const isCurrentlySelected = prev.includes(off.id);
-
-      if (isCurrentlySelected) {
-        return prev.filter(id => id !== off.id);
-      }
-
-      if (offerType === 'EXCLUSIVE') {
-        // EXCLUSIVE clears everything else
-        return [off.id];
-      } else {
-        // INCLUSIVE clears any EXCLUSIVE offer
-        const withoutExclusive = prev.filter(id => {
-          const type = offers.find(o => o.id === id)?.offerType;
-          return type !== 'EXCLUSIVE';
-        });
-        return [...withoutExclusive, off.id];
-      }
-    });
-  };
-
   const getOfferType = (offerId: number) => {
     const matched = offers.find(o => o.id === offerId);
     return matched ? matched.offerType : 'EXCLUSIVE';
   };
-
-  const getSelectionKey = () =>
-    `${zone}:${selectedDate ? formatLocalDate(selectedDate) : ''}:${startTime}:${noOfHours}`;
 
   const getAccessToken = async () => {
     if (apiToken) return apiToken;
@@ -2173,59 +2168,8 @@ const BookingPage = () => {
     return token;
   };
 
-  const acquireLock = async () => {
-    if (!selectedDate || !zone || !startTime || noOfHours <= 0) {
-      throw new Error('Complete the setup, date, start time, and duration.');
-    }
-
-    const selectionKey = getSelectionKey();
-    if (activeLock?.selectionKey === selectionKey) {
-      return activeLock;
-    }
-
-    const token = await getAccessToken();
-    const lockToken = crypto.randomUUID();
-    const response = await lockSlot(
-      {
-        setupConfigurationId: Number(zone),
-        date: formatLocalDate(selectedDate),
-        startTime,
-        noOfHours,
-      },
-      lockToken,
-      token
-    );
-
-    if (response.success === false) {
-      throw new Error(response.message ?? 'Could not lock this slot.');
-    }
-
-    const lock = { token: lockToken, selectionKey };
-    setActiveLock(lock);
-    return lock;
-  };
-
-  const nextStep = async () => {
+  const nextStep = () => {
     if (step >= STEPS.length - 1) return;
-
-    if (step === 4) {
-      setIsLocking(true);
-      setEvaluationError(null);
-      try {
-        await acquireLock();
-      } catch (error) {
-        setEvaluationError(
-          getApiErrorMessage(error, 'Could not lock this slot. Refresh availability and try again.')
-        );
-        if (error instanceof ApiError && error.status === 409) {
-          void fetchAvailability();
-        }
-        return;
-      } finally {
-        setIsLocking(false);
-      }
-    }
-
     setStep(currentStep => currentStep + 1);
   };
 
@@ -2240,7 +2184,6 @@ const BookingPage = () => {
     try {
       const zoneData = setups.find(s => String(s.id) === zone);
       const selectedGames = games.filter(game => selectedGameIds.includes(game.id));
-      await acquireLock();
       const token = await getAccessToken();
       const tentativeResponse = await createTentativeBooking<TentativeBooking>(
         {
@@ -2250,6 +2193,8 @@ const BookingPage = () => {
           date: formatLocalDate(selectedDate),
           startTime,
           noOfHours,
+          gameIds: selectedGameIds,
+          appliedOfferIds: selectedOfferIds,
         },
         token
       );
@@ -2258,7 +2203,6 @@ const BookingPage = () => {
         throw new Error(tentativeResponse.message ?? 'The tentative booking was not created.');
       }
 
-      setActiveLock(null);
       const bookingId = tentativeResponse.booking.id;
       const amount = summary?.totalAmount ?? tentativeResponse.booking.amountCharged ?? 0;
       const gameMeta = selectedGames[0] ? getGameMeta(selectedGames[0].name) : { emoji: '🎮' };
@@ -2287,9 +2231,6 @@ const BookingPage = () => {
       setBookingError(
         getApiErrorMessage(error, 'Server connection failed. Could not place booking.')
       );
-      if (error instanceof ApiError && error.status === 409) {
-        void fetchAvailability();
-      }
     } finally {
       setIsBooking(false);
     }
@@ -2405,7 +2346,6 @@ const BookingPage = () => {
                 error={evaluationError}
                 onRetry={fetchEvaluation}
                 selectedIds={selectedOfferIds}
-                onToggleOffer={handleToggleOffer}
                 getOfferType={getOfferType}
               />
             )}
@@ -2473,11 +2413,7 @@ const BookingPage = () => {
                 marginLeft: 'auto',
               }}
             >
-              {isLocking
-                ? 'Locking Slot...'
-                : step === STEPS.length - 2
-                  ? 'Review Booking →'
-                  : 'Continue →'}
+              {step === STEPS.length - 2 ? 'Review Booking →' : 'Continue →'}
             </motion.button>
           )}
         </div>

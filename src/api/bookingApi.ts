@@ -58,6 +58,8 @@ export interface TentativeBookingRequest {
   date: string;
   startTime: string;
   noOfHours: number;
+  gameIds: number[];
+  appliedOfferIds: number[];
 }
 
 export interface BookingApiResponse<T> {
@@ -96,12 +98,6 @@ export const getAvailability = (date: string, setupConfigurationId: number) =>
       date,
       setupConfigurationId: String(setupConfigurationId),
     })}`
-  );
-
-export const lockSlot = (selection: BookingSelection, lockToken: string, token: string) =>
-  apiRequest<BookingApiResponse<never>>(
-    '/api/slots/lock',
-    jsonRequest({ ...selection, lockToken }, token)
   );
 
 export const reviewBooking = <T>(request: ReviewBookingRequest) =>
