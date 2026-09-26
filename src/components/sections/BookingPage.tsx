@@ -108,6 +108,38 @@ interface BookingSummary {
   availablePromotions: AvailablePromo[];
 }
 
+interface EvaluationPricing {
+  originalAmount: number;
+  discountApplied: number;
+  totalAmount: number;
+}
+
+interface ReviewSummaryResponse {
+  setup?: {
+    configurationName?: string;
+  };
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  slots?: string[];
+  playersCount?: number;
+  noOfHours?: number;
+  durationHours?: number;
+  zoneName?: string;
+  gamesList?: string[];
+  games?: Array<{ id: number; name: string }>;
+  priceCalculationText?: string;
+  originalAmount?: number;
+  discountApplied?: number;
+  totalAmount?: number;
+  appliedPromotions?: AppliedPromo[];
+  availablePromotions?: AvailablePromo[];
+  selectedOffers?: Array<{
+    id: number;
+    name: string;
+  }>;
+}
+
 interface OfferDetail {
   id: number;
   offerId: number;
@@ -386,6 +418,19 @@ const getEndTime = (startTime: string, noOfHours: number): string => {
     minute: '2-digit',
     hour12: true,
   });
+};
+
+const getEndTimeFromSlots = (
+  slots: string[] | undefined,
+  startTime: string,
+  noOfHours: number
+): string => {
+  const lastSlot = slots?.[slots.length - 1];
+  const separatorIndex = lastSlot?.lastIndexOf(' - ') ?? -1;
+
+  return separatorIndex >= 0 && lastSlot
+    ? lastSlot.slice(separatorIndex + 3)
+    : getEndTime(startTime, noOfHours);
 };
 
 // ─── Progress bar ──────────────────────────────────────────────────────────────
@@ -1582,7 +1627,7 @@ const Step6Confirm = ({
   }
 
   const formattedSlots = `${summary.startTime} – ${summary.endTime}`;
-  const gamesStr = summary.gamesList.join(', ') || '-';
+  const gamesStr = (summary.gamesList ?? []).join(', ') || '-';
 
   const rows = [
     { label: 'Date', val: summary.date },
@@ -1924,6 +1969,7 @@ const BookingPage = () => {
   const [loadingEvaluation, setLoadingEvaluation] = useState(false);
   const [evaluationError, setEvaluationError] = useState<string | null>(null);
   const [selectedOfferIds, setSelectedOfferIds] = useState<number[]>([]);
+  const [evaluationPricing, setEvaluationPricing] = useState<EvaluationPricing | null>(null);
 
   // Review Summary states (Step 6)
   const [summary, setSummary] = useState<BookingSummary | null>(null);
@@ -2067,6 +2113,7 @@ const BookingPage = () => {
         offers?: EvaluationOffer[];
         appliedOffers?: EvaluatedOfferResponse[];
         ineligibleOffers?: EvaluatedOfferResponse[];
+        bookingSummary?: EvaluationPricing;
         message?: string;
       }>('/api/offers/evaluate', {
         method: 'POST',
@@ -2079,6 +2126,7 @@ const BookingPage = () => {
           : normalizeEvaluatedOffers(data.appliedOffers ?? [], data.ineligibleOffers ?? [], offers);
         setEvaluationOffers(evaluatedOffers);
         setSelectedOfferIds(evaluatedOffers.filter(offer => offer.eligible).map(offer => offer.id));
+        setEvaluationPricing(data.bookingSummary ?? null);
       } else {
         setEvaluationError(data.message || 'Failed to retrieve offer evaluation.');
       }
@@ -2109,15 +2157,43 @@ const BookingPage = () => {
         gameIds: selectedGameIds,
         appliedOfferIds: selectedOfferIds,
       };
-      const data = await reviewBooking<BookingSummary>(payload);
+      const data = await reviewBooking<ReviewSummaryResponse>(payload);
       if (data.success && data.summary) {
+        const review = data.summary;
+        const pricing = {
+          originalAmount: review.originalAmount ?? evaluationPricing?.originalAmount ?? 0,
+          discountApplied: review.discountApplied ?? evaluationPricing?.discountApplied ?? 0,
+          totalAmount: review.totalAmount ?? evaluationPricing?.totalAmount ?? 0,
+        };
         setSummary({
-          ...data.summary,
-          date: data.summary.date ?? fmtFull(selectedDate!),
-          startTime: data.summary.startTime ?? startTime,
-          endTime: data.summary.endTime ?? getEndTime(startTime, noOfHours),
-          noOfHours: data.summary.noOfHours ?? noOfHours,
-          playersCount: data.summary.playersCount ?? people,
+          date: review.date ?? fmtFull(selectedDate!),
+          startTime: review.startTime ?? startTime,
+          endTime: review.endTime ?? getEndTimeFromSlots(review.slots, startTime, noOfHours),
+          noOfHours: review.noOfHours ?? review.durationHours ?? noOfHours,
+          durationHours: review.durationHours ?? review.noOfHours ?? noOfHours,
+          playersCount: review.playersCount ?? people,
+          zoneName: review.zoneName ?? review.setup?.configurationName ?? 'Vortex Console',
+          gamesList: review.gamesList ?? review.games?.map(game => game.name) ?? [],
+          priceCalculationText:
+            review.priceCalculationText ?? `Session subtotal ₹${pricing.originalAmount}`,
+          ...pricing,
+          appliedPromotions:
+            review.appliedPromotions ??
+            review.selectedOffers?.map(offer => ({
+              id: offer.id,
+              name: offer.name,
+              discount: evaluationOffers.find(item => item.id === offer.id)?.discount ?? 0,
+            })) ??
+            [],
+          availablePromotions:
+            review.availablePromotions ??
+            evaluationOffers
+              .filter(offer => !offer.eligible)
+              .map(offer => ({
+                id: offer.id,
+                name: offer.name,
+                reason: offer.reason,
+              })),
         });
       } else {
         setSummaryError(data.message || 'Failed to retrieve booking review summary.');
@@ -2127,7 +2203,17 @@ const BookingPage = () => {
     } finally {
       setLoadingSummary(false);
     }
-  }, [selectedGameIds, zone, people, selectedDate, startTime, noOfHours, selectedOfferIds]);
+  }, [
+    selectedGameIds,
+    zone,
+    people,
+    selectedDate,
+    startTime,
+    noOfHours,
+    selectedOfferIds,
+    evaluationPricing,
+    evaluationOffers,
+  ]);
 
   useEffect(() => {
     if (step === 5 && zone && selectedDate && startTime && noOfHours > 0) {
