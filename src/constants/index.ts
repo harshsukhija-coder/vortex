@@ -45,6 +45,11 @@ export const navLinks: TNavLink[] = [
     id: 'contact',
     title: 'Join Us',
   },
+  {
+    id: 'rewards',
+    title: 'Rewards',
+    path: '/rewards',
+  },
 ];
 
 const services: TService[] = [

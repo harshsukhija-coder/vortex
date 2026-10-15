@@ -33,6 +33,8 @@ export type TTechnology = Required<Omit<TCommonProps, "title">>;
 
 export type TNavLink = {
   id: string;
+  /** When set, the link navigates to this route instead of a home-page section. */
+  path?: string;
 } & Required<Pick<TCommonProps, "title">>;
 
 export type TService = Required<Omit<TCommonProps, "name">>;

@@ -14,6 +14,7 @@ import {
 } from "./components";
 import BookingPage from "./components/sections/BookingPage";
 import BookingConfirmed from "./components/sections/BookingConfirmed";
+import VisitRewards from "./components/sections/VisitRewards";
 
 import { useEffect } from "react";
 import { config } from "./constants/config";
@@ -87,6 +88,7 @@ const App = () => {
         <Route path="/opening-soon" element={<OpeningSoon />} />
         <Route path="/book" element={<BookingPage />} />
         <Route path="/booking-confirmed" element={<BookingConfirmed />} />
+        <Route path="/rewards" element={<VisitRewards />} />
       </Routes>
     </BrowserRouter>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 import { styles } from '../../constants/styles';
@@ -11,6 +11,9 @@ const Navbar = () => {
   const [active, setActive] = useState<string | null>();
   const [toggle, setToggle] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { pathname } = useLocation();
+  const isActive = (nav: { id: string; path?: string }) =>
+    nav.path ? pathname === nav.path : active === nav.id;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -76,17 +79,21 @@ const Navbar = () => {
         </Link>
 
         <div className="hidden items-center justify-center lg:flex">
-          <ul className="flex list-none flex-row items-center gap-8">
+          <ul className="flex list-none flex-row items-center gap-5 xl:gap-8">
             {navLinks.map(nav => (
               <motion.li
                 key={nav.id}
                 whileHover={{ scale: 1.08 }}
                 whileTap={{ scale: 0.95 }}
                 className={`${
-                  active === nav.id ? 'text-cyan-400 font-bold neon-text-blue' : 'text-secondary'
+                  isActive(nav) ? 'text-cyan-400 font-bold neon-text-blue' : 'text-secondary'
                 } cursor-pointer whitespace-nowrap text-[16px] font-medium hover:text-white transition-all`}
               >
-                <a href={`/#${nav.id}`}>{nav.title}</a>
+                {nav.path ? (
+                  <Link to={nav.path}>{nav.title}</Link>
+                ) : (
+                  <a href={`/#${nav.id}`}>{nav.title}</a>
+                )}
               </motion.li>
             ))}
           </ul>
@@ -112,13 +119,17 @@ const Navbar = () => {
                 <li
                   key={nav.id}
                   className={`font-poppins cursor-pointer text-[16px] font-medium ${
-                    active === nav.id ? 'text-cyan-400 font-bold' : 'text-secondary'
+                    isActive(nav) ? 'text-cyan-400 font-bold' : 'text-secondary'
                   }`}
                   onClick={() => {
                     setToggle(!toggle);
                   }}
                 >
-                  <a href={`/#${nav.id}`}>{nav.title}</a>
+                  {nav.path ? (
+                    <Link to={nav.path}>{nav.title}</Link>
+                  ) : (
+                    <a href={`/#${nav.id}`}>{nav.title}</a>
+                  )}
                 </li>
               ))}
             </ul>
