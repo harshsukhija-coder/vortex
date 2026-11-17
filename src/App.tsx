@@ -15,6 +15,7 @@ import {
 import BookingPage from "./components/sections/BookingPage";
 import BookingConfirmed from "./components/sections/BookingConfirmed";
 import VisitRewards from "./components/sections/VisitRewards";
+import LaunchToast from "./components/layout/LaunchToast";
 
 import { useEffect } from "react";
 import { config } from "./constants/config";
@@ -82,6 +83,7 @@ const App = () => {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <LaunchToast />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/roadmap" element={<RoadmapPage />} />
