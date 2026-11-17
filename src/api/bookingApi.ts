@@ -51,6 +51,38 @@ export interface ReviewBookingRequest extends BookingSelection {
   appliedOfferIds?: number[];
 }
 
+export interface GamePremium {
+  id: number;
+  name: string;
+  price: number;
+}
+
+export interface PriceQuoteRequest {
+  setupConfigurationId: number;
+  noOfPlayers: number;
+  noOfHours: number;
+  gameIds?: number[];
+}
+
+export interface PriceQuote {
+  success?: boolean;
+  basePrice: number;
+  pricing: {
+    setupConfigurationId: number;
+    playerType?: string;
+    noOfPlayers: number;
+    sessionDurationHours: number;
+    ratePerPersonPerHour: number;
+    setupPrice: number;
+    gamesTotal: number;
+    games: GamePremium[];
+    basePrice: number;
+    calculationFormula?: string;
+    setupFormula?: string;
+    gamesFormula?: string;
+  };
+}
+
 export interface TentativeBookingRequest {
   setupConfigurationId: number;
   phoneNumber: string;
@@ -99,6 +131,18 @@ export const getAvailability = (date: string, setupConfigurationId: number) =>
       setupConfigurationId: String(setupConfigurationId),
     })}`
   );
+
+export const getPriceQuote = (request: PriceQuoteRequest) => {
+  const params = new URLSearchParams({
+    setupConfigurationId: String(request.setupConfigurationId),
+    noOfPlayers: String(request.noOfPlayers),
+    noOfHours: String(request.noOfHours),
+  });
+  if (request.gameIds?.length) {
+    params.set('gameIds', request.gameIds.join(','));
+  }
+  return apiRequest<PriceQuote>(`/api/price?${params}`);
+};
 
 export const reviewBooking = <T>(request: ReviewBookingRequest) =>
   apiRequest<BookingApiResponse<T>>('/api/bookings/review', jsonRequest(request));

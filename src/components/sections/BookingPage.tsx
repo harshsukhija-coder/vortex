@@ -91,6 +91,12 @@ interface AvailablePromo {
   reason: string;
 }
 
+interface PricedGame {
+  id: number;
+  name: string;
+  price: number;
+}
+
 interface BookingSummary {
   date: string;
   startTime: string; // e.g. "10:00 AM"
@@ -99,7 +105,12 @@ interface BookingSummary {
   playersCount: number;
   zoneName: string;
   gamesList: string[];
+  selectedGames: PricedGame[];
   durationHours?: number; // alias for noOfHours, may be absent
+  setupPrice: number;
+  gamesTotal: number;
+  setupFormula?: string;
+  gamesFormula?: string;
   priceCalculationText: string;
   originalAmount: number;
   discountApplied: number;
@@ -109,9 +120,30 @@ interface BookingSummary {
 }
 
 interface EvaluationPricing {
+  setupPrice?: number;
+  gamesTotal?: number;
+  games?: PricedGame[];
   originalAmount: number;
+  offerDiscount?: number;
   discountApplied: number;
+  gameplayAfterOffers?: number;
   totalAmount: number;
+  calculationFormula?: string;
+  setupFormula?: string;
+  gamesFormula?: string;
+}
+
+interface ReviewPricingBlock {
+  ratePerPersonPerHour?: number;
+  playerType?: string;
+  setupPrice?: number;
+  gamesTotal?: number;
+  addOnsTotal?: number;
+  basePrice?: number;
+  totalAmount?: number;
+  calculationFormula?: string;
+  setupFormula?: string;
+  gamesFormula?: string;
 }
 
 interface ReviewSummaryResponse {
@@ -127,10 +159,13 @@ interface ReviewSummaryResponse {
   durationHours?: number;
   zoneName?: string;
   gamesList?: string[];
-  games?: Array<{ id: number; name: string }>;
+  games?: PricedGame[];
+  gamesTotal?: number;
+  pricing?: ReviewPricingBlock;
   priceCalculationText?: string;
   originalAmount?: number;
   discountApplied?: number;
+  offerDiscount?: number;
   totalAmount?: number;
   appliedPromotions?: AppliedPromo[];
   availablePromotions?: AvailablePromo[];
@@ -1382,6 +1417,27 @@ const Step4 = ({
               <div
                 style={{
                   display: 'inline-block',
+                  fontSize: '0.68rem',
+                  letterSpacing: '0.04em',
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  fontWeight: 800,
+                  marginBottom: 6,
+                  color: g.price > 0 ? '#FFD700' : 'rgba(255,255,255,0.45)',
+                  background:
+                    g.price > 0
+                      ? 'rgba(255,215,0,0.12)'
+                      : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${
+                    g.price > 0 ? 'rgba(255,215,0,0.35)' : 'rgba(255,255,255,0.08)'
+                  }`,
+                }}
+              >
+                {g.price > 0 ? `+₹${g.price}` : 'Included'}
+              </div>
+              <div
+                style={{
+                  display: 'inline-block',
                   fontSize: '0.58rem',
                   letterSpacing: '0.12em',
                   padding: '2px 8px',
@@ -1398,6 +1454,32 @@ const Step4 = ({
         })}
       </div>
     )}
+
+    {selectedGameIds.length > 0 && (
+      <div
+        style={{
+          marginTop: 20,
+          padding: '14px 16px',
+          borderRadius: 14,
+          border: '1px solid rgba(145,94,255,0.25)',
+          background: 'rgba(145,94,255,0.08)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.65)' }}>
+          Game premiums are added on top of the console rate. Offers do not reduce them.
+        </span>
+        <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#FFD700', whiteSpace: 'nowrap' }}>
+          +₹
+          {games
+            .filter(game => selectedGameIds.includes(game.id))
+            .reduce((sum, game) => sum + (game.price || 0), 0)}
+        </span>
+      </div>
+    )}
   </StepWrap>
 );
 
@@ -1409,6 +1491,7 @@ const OffersAvailableStep = ({
   onRetry,
   selectedIds,
   getOfferType,
+  pricing,
 }: {
   offers: EvaluationOffer[];
   loading: boolean;
@@ -1416,13 +1499,78 @@ const OffersAvailableStep = ({
   onRetry: () => void;
   selectedIds: number[];
   getOfferType: (id: number) => 'EXCLUSIVE' | 'INCLUSIVE';
-}) => (
+  pricing: EvaluationPricing | null;
+}) => {
+  const selectedOfferDiscount = offers
+    .filter(offer => selectedIds.includes(offer.id))
+    .reduce((sum, offer) => sum + (offer.discount || 0), 0);
+  const apiDiscount = pricing?.discountApplied ?? pricing?.offerDiscount ?? 0;
+  const offerDiscount = Math.max(apiDiscount, selectedOfferDiscount);
+  const estimatedTotal = Math.max(0, (pricing?.totalAmount ?? 0) - Math.max(0, offerDiscount - apiDiscount));
+
+  return (
   <StepWrap>
     <StepTitle
       icon="Step 05 / 06"
       title="Offers Available"
       sub="Eligible promotions are applied automatically"
     />
+    {pricing && !loading && !error && (
+      <div
+        style={{
+          marginBottom: 18,
+          padding: '14px 16px',
+          borderRadius: 14,
+          border: '1px solid rgba(255,255,255,0.1)',
+          background: 'rgba(255,255,255,0.03)',
+          display: 'grid',
+          gap: 8,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+          <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>
+            Console / players
+          </span>
+          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>
+            ₹{pricing.setupPrice ?? Math.max(0, pricing.originalAmount - (pricing.gamesTotal ?? 0))}
+          </span>
+        </div>
+        {(pricing.gamesTotal ?? 0) > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+            <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>
+              Game premiums
+            </span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFD700' }}>
+              +₹{pricing.gamesTotal}
+            </span>
+          </div>
+        )}
+        {offerDiscount > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+            <span style={{ fontSize: '0.78rem', color: '#00f0ff' }}>Offer discount</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#00f0ff' }}>
+              -₹{offerDiscount}
+            </span>
+          </div>
+        )}
+        <div
+          style={{
+            height: 1,
+            background: 'rgba(255,255,255,0.08)',
+            margin: '2px 0',
+          }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+          <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#fff' }}>Estimated total</span>
+          <span style={{ fontSize: '1rem', fontWeight: 900, color: '#00f0ff' }}>
+            ₹{estimatedTotal}
+          </span>
+        </div>
+        <p style={{ margin: 0, fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)' }}>
+          Offers reduce console time only. Game premiums stay full price.
+        </p>
+      </div>
+    )}
     {loading ? (
       <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.5)' }}>
         Evaluating active lounge deals...
@@ -1572,7 +1720,8 @@ const OffersAvailableStep = ({
       </div>
     )}
   </StepWrap>
-);
+  );
+};
 
 // ─── STEP 6: Confirm ───────────────────────────────────────────────────────────
 const Step6Confirm = ({
@@ -1872,6 +2021,62 @@ const Step6Confirm = ({
           boxShadow: '0 0 30px rgba(145,94,255,0.15)',
         }}
       >
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>
+              Console / players
+            </div>
+            {summary.setupFormula && (
+              <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>
+                {summary.setupFormula}
+              </div>
+            )}
+          </div>
+          <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
+            ₹{summary.setupPrice}
+          </span>
+        </div>
+
+        {(summary.gamesTotal > 0 || summary.selectedGames.some(game => game.price > 0)) && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>
+                  Game premiums
+                </div>
+                {summary.gamesFormula && (
+                  <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>
+                    {summary.gamesFormula}
+                  </div>
+                )}
+              </div>
+              <span style={{ fontSize: '0.85rem', color: '#FFD700', fontWeight: 700 }}>
+                +₹{summary.gamesTotal}
+              </span>
+            </div>
+            {summary.selectedGames.filter(game => game.price > 0).length > 0 && (
+              <div style={{ marginTop: 8, display: 'grid', gap: 4 }}>
+                {summary.selectedGames
+                  .filter(game => game.price > 0)
+                  .map(game => (
+                    <div
+                      key={game.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontSize: '0.72rem',
+                        color: 'rgba(255,255,255,0.45)',
+                      }}
+                    >
+                      <span>{game.name}</span>
+                      <span>+₹{game.price}</span>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
           <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>
             {summary.priceCalculationText}
@@ -1882,7 +2087,9 @@ const Step6Confirm = ({
         </div>
         {summary.discountApplied > 0 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: '0.8rem', color: '#00f0ff' }}>Discount Applied</span>
+            <span style={{ fontSize: '0.8rem', color: '#00f0ff' }}>
+              Offer discount (console time only)
+            </span>
             <span style={{ fontSize: '0.85rem', color: '#00f0ff', fontWeight: 600 }}>
               -₹{summary.discountApplied}
             </span>
@@ -2112,6 +2319,7 @@ const BookingPage = () => {
         success?: boolean;
         offers?: EvaluationOffer[];
         appliedOffers?: EvaluatedOfferResponse[];
+        applicableOffers?: EvaluatedOfferResponse[];
         ineligibleOffers?: EvaluatedOfferResponse[];
         bookingSummary?: EvaluationPricing;
         message?: string;
@@ -2123,7 +2331,11 @@ const BookingPage = () => {
       if (data.success) {
         const evaluatedOffers = data.offers
           ? data.offers
-          : normalizeEvaluatedOffers(data.appliedOffers ?? [], data.ineligibleOffers ?? [], offers);
+          : normalizeEvaluatedOffers(
+              [...(data.appliedOffers ?? []), ...(data.applicableOffers ?? [])],
+              data.ineligibleOffers ?? [],
+              offers
+            );
         setEvaluationOffers(evaluatedOffers);
         setSelectedOfferIds(evaluatedOffers.filter(offer => offer.eligible).map(offer => offer.id));
         setEvaluationPricing(data.bookingSummary ?? null);
@@ -2160,11 +2372,55 @@ const BookingPage = () => {
       const data = await reviewBooking<ReviewSummaryResponse>(payload);
       if (data.success && data.summary) {
         const review = data.summary;
-        const pricing = {
-          originalAmount: review.originalAmount ?? evaluationPricing?.originalAmount ?? 0,
-          discountApplied: review.discountApplied ?? evaluationPricing?.discountApplied ?? 0,
-          totalAmount: review.totalAmount ?? evaluationPricing?.totalAmount ?? 0,
-        };
+        const pricingBlock = review.pricing;
+        const selectedGames =
+          review.games ??
+          evaluationPricing?.games ??
+          games
+            .filter(game => selectedGameIds.includes(game.id))
+            .map(game => ({ id: game.id, name: game.name, price: game.price }));
+        const setupPrice =
+          pricingBlock?.setupPrice ??
+          evaluationPricing?.setupPrice ??
+          Math.max(
+            0,
+            (pricingBlock?.basePrice ??
+              review.originalAmount ??
+              evaluationPricing?.originalAmount ??
+              0) - (review.gamesTotal ?? pricingBlock?.gamesTotal ?? evaluationPricing?.gamesTotal ?? 0)
+          );
+        const gamesTotal =
+          review.gamesTotal ??
+          pricingBlock?.gamesTotal ??
+          evaluationPricing?.gamesTotal ??
+          selectedGames.reduce((sum, game) => sum + (game.price || 0), 0);
+        const originalAmount =
+          pricingBlock?.basePrice ??
+          review.originalAmount ??
+          evaluationPricing?.originalAmount ??
+          setupPrice + gamesTotal;
+        const selectedOfferDiscount = (
+          review.selectedOffers?.map(offer => offer.id) ?? selectedOfferIds
+        ).reduce(
+          (sum, offerId) =>
+            sum + (evaluationOffers.find(offer => offer.id === offerId)?.discount ?? 0),
+          0
+        );
+        const discountApplied =
+          review.discountApplied ??
+          review.offerDiscount ??
+          evaluationPricing?.discountApplied ??
+          evaluationPricing?.offerDiscount ??
+          selectedOfferDiscount;
+        const apiTotal = pricingBlock?.totalAmount ?? review.totalAmount;
+        const totalAmount =
+          apiTotal != null && apiTotal < originalAmount
+            ? apiTotal
+            : Math.max(
+                0,
+                (apiTotal ?? evaluationPricing?.totalAmount ?? originalAmount) - discountApplied
+              );
+
         setSummary({
           date: review.date ?? fmtFull(selectedDate!),
           startTime: review.startTime ?? startTime,
@@ -2173,10 +2429,20 @@ const BookingPage = () => {
           durationHours: review.durationHours ?? review.noOfHours ?? noOfHours,
           playersCount: review.playersCount ?? people,
           zoneName: review.zoneName ?? review.setup?.configurationName ?? 'Vortex Console',
-          gamesList: review.gamesList ?? review.games?.map(game => game.name) ?? [],
+          gamesList: review.gamesList ?? selectedGames.map(game => game.name),
+          selectedGames,
+          setupPrice,
+          gamesTotal,
+          setupFormula: pricingBlock?.setupFormula ?? evaluationPricing?.setupFormula,
+          gamesFormula: pricingBlock?.gamesFormula ?? evaluationPricing?.gamesFormula,
           priceCalculationText:
-            review.priceCalculationText ?? `Session subtotal ₹${pricing.originalAmount}`,
-          ...pricing,
+            pricingBlock?.calculationFormula ??
+            review.priceCalculationText ??
+            evaluationPricing?.calculationFormula ??
+            `Session subtotal ₹${originalAmount}`,
+          originalAmount,
+          discountApplied,
+          totalAmount,
           appliedPromotions:
             review.appliedPromotions ??
             review.selectedOffers?.map(offer => ({
@@ -2213,6 +2479,7 @@ const BookingPage = () => {
     selectedOfferIds,
     evaluationPricing,
     evaluationOffers,
+    games,
   ]);
 
   useEffect(() => {
@@ -2433,6 +2700,7 @@ const BookingPage = () => {
                 onRetry={fetchEvaluation}
                 selectedIds={selectedOfferIds}
                 getOfferType={getOfferType}
+                pricing={evaluationPricing}
               />
             )}
             {step === 5 && (
