@@ -9,6 +9,7 @@ import {
 } from "@react-three/drei";
 
 import CanvasLoader from "../layout/Loader";
+import SafeCanvas from "./SafeCanvas";
 
 const Ball = (props: any) => {
   const [decal] = useTexture([props.imgUrl]);
@@ -40,18 +41,24 @@ const Ball = (props: any) => {
 
 const BallCanvas: React.FC<{ icon: string }> = ({ icon }) => {
   return (
-    <Canvas
-      frameloop="demand"
-      dpr={[1, 2]}
-      gl={{ preserveDrawingBuffer: true }}
-    >
-      <Suspense fallback={<CanvasLoader />}>
-        <OrbitControls enablePan={false} enableZoom={false} />
-        <Ball imgUrl={icon} />
-      </Suspense>
+    <SafeCanvas fallback={<img src={icon} alt="" className="mx-auto h-16 w-16 object-contain opacity-80" />}>
+      <Canvas
+        frameloop="demand"
+        dpr={[1, 2]}
+        gl={{
+          preserveDrawingBuffer: true,
+          powerPreference: "low-power",
+          failIfMajorPerformanceCaveat: false,
+        }}
+      >
+        <Suspense fallback={<CanvasLoader />}>
+          <OrbitControls enablePan={false} enableZoom={false} />
+          <Ball imgUrl={icon} />
+        </Suspense>
 
-      <Preload all />
-    </Canvas>
+        <Preload all />
+      </Canvas>
+    </SafeCanvas>
   );
 };
 

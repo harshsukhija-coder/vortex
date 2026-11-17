@@ -4,6 +4,7 @@ import { OrbitControls, Preload } from "@react-three/drei";
 import * as THREE from "three";
 
 import CanvasLoader from "../layout/Loader";
+import SafeCanvas from "./SafeCanvas";
 
 // ─── RGB cycling color ────────────────────────────────────────────────────────
 const rgbCycle = (t: number, offset = 0) =>
@@ -429,31 +430,45 @@ const PS5Canvas = () => {
         <div className="h-[1.5px] w-28 mx-auto bg-gradient-to-r from-transparent via-[#bf61ff] to-transparent mt-1" />
       </div>
 
-      <Canvas
-        frameloop="always"
-        shadows
-        dpr={[1, 2]}
-        camera={{
-          position: isMobile ? [1.5, 2.2, 5.5] : [3.5, 2.2, 5.0],
-          fov: isMobile ? 52 : 48,
-        }}
-        gl={{ preserveDrawingBuffer: true }}
-        className="w-full h-full cursor-grab active:cursor-grabbing"
+      <SafeCanvas
+        fallback={
+          <div className="flex h-full min-h-[220px] w-full items-center justify-center bg-gradient-to-b from-purple-900/20 to-transparent">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300/70">
+              PS5 Gaming Cafe
+            </p>
+          </div>
+        }
       >
-        <Suspense fallback={<CanvasLoader />}>
-          <OrbitControls
-            target={[0.5, -0.3, -0.8]}
-            enablePan={false}
-            enableZoom={false}
-            maxPolarAngle={Math.PI / 2.2}
-            minPolarAngle={Math.PI / 5}
-            autoRotate
-            autoRotateSpeed={0.4}
-          />
-          <GamingRoomScene />
-        </Suspense>
-        <Preload all />
-      </Canvas>
+        <Canvas
+          frameloop="always"
+          shadows
+          dpr={[1, 2]}
+          camera={{
+            position: isMobile ? [1.5, 2.2, 5.5] : [3.5, 2.2, 5.0],
+            fov: isMobile ? 52 : 48,
+          }}
+          gl={{
+            preserveDrawingBuffer: true,
+            powerPreference: "low-power",
+            failIfMajorPerformanceCaveat: false,
+          }}
+          className="w-full h-full cursor-grab active:cursor-grabbing"
+        >
+          <Suspense fallback={<CanvasLoader />}>
+            <OrbitControls
+              target={[0.5, -0.3, -0.8]}
+              enablePan={false}
+              enableZoom={false}
+              maxPolarAngle={Math.PI / 2.2}
+              minPolarAngle={Math.PI / 5}
+              autoRotate
+              autoRotateSpeed={0.4}
+            />
+            <GamingRoomScene />
+          </Suspense>
+          <Preload all />
+        </Canvas>
+      </SafeCanvas>
     </div>
   );
 };
