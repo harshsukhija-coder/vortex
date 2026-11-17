@@ -48,6 +48,7 @@ const ScrollToTop = () => {
 const Home = () => {
   return (
     <div className="bg-primary relative z-0">
+      <LaunchToast />
       <div className="bg-hero-pattern bg-cover bg-center bg-no-repeat">
         <Navbar />
         <Hero />
@@ -83,7 +84,6 @@ const App = () => {
   return (
     <BrowserRouter>
       <ScrollToTop />
-      <LaunchToast />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/roadmap" element={<RoadmapPage />} />
